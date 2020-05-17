@@ -24,8 +24,13 @@ def rechunk(original, split, final, split_chunks=None):
         split_chunks = (chunksize,) * (a.ndim - 1)
 
     client = get_client()
-    fs = client.map(split_and_store, list(range(a.numblocks[0])),
-                    src=original, dst=split, split_chunks=split_chunks)
+    fs = client.map(
+        split_and_store,
+        list(range(a.numblocks[0])),
+        src=original,
+        dst=split,
+        split_chunks=split_chunks,
+    )
     wait(fs)
 
     n = np.prod(da.from_zarr(split).numblocks[1:])
@@ -49,14 +54,12 @@ def split_and_store(i, src, dst, split_chunks):
     """
     mapper = get_mapper(src)
     A = zarr.Array(mapper, read_only=True)
-    slices = da.core.slices_from_chunks(da.core.normalize_chunks(A.chunks,
-                                                                 A.shape))
+    slices = da.core.slices_from_chunks(da.core.normalize_chunks(A.chunks, A.shape))
     slice_ = slices[i]
     chunk = A[slice_]  # ndarray
     # chunks = (2000, 2000)
     chunks = split_chunks
-    store = zarr.open(dst, mode="a", shape=A.shape, chunks=(1,) + chunks,
-                      dtype=A.dtype)
+    store = zarr.open(dst, mode="a", shape=A.shape, chunks=(1,) + chunks, dtype=A.dtype)
     store
 
     assert store.shape == A.shape
@@ -83,8 +86,7 @@ def merge_and_store(i, src, dst):
     mapper = get_mapper(src)
     A = zarr.Array(mapper, read_only=True)
     zchunks = (A.shape[0],) + A.chunks[1:]
-    store = zarr.open(dst, mode="a", shape=A.shape, chunks=zchunks,
-                      dtype=A.dtype)
+    store = zarr.open(dst, mode="a", shape=A.shape, chunks=zchunks, dtype=A.dtype)
     ochunks = da.core.normalize_chunks(zchunks, A.shape)
     slices = da.core.slices_from_chunks(ochunks)
     store[slices[i]] = A[slices[i]]
